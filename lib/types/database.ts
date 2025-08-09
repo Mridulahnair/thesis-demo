@@ -144,6 +144,91 @@ export interface Database {
           joined_at?: string;
         };
       };
+      events: {
+        Row: {
+          id: string;
+          title: string;
+          description: string;
+          organizer_id: string;
+          event_type: 'workshop' | 'meetup' | 'mentoring_session' | 'discussion' | 'other';
+          location: string;
+          latitude: number;
+          longitude: number;
+          start_time: string;
+          end_time: string;
+          max_attendees?: number;
+          attendee_count: number;
+          is_online: boolean;
+          meeting_link?: string;
+          tags: string[];
+          community_id?: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          title: string;
+          description: string;
+          organizer_id: string;
+          event_type?: 'workshop' | 'meetup' | 'mentoring_session' | 'discussion' | 'other';
+          location: string;
+          latitude: number;
+          longitude: number;
+          start_time: string;
+          end_time: string;
+          max_attendees?: number;
+          attendee_count?: number;
+          is_online?: boolean;
+          meeting_link?: string;
+          tags?: string[];
+          community_id?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          title?: string;
+          description?: string;
+          organizer_id?: string;
+          event_type?: 'workshop' | 'meetup' | 'mentoring_session' | 'discussion' | 'other';
+          location?: string;
+          latitude?: number;
+          longitude?: number;
+          start_time?: string;
+          end_time?: string;
+          max_attendees?: number;
+          attendee_count?: number;
+          is_online?: boolean;
+          meeting_link?: string;
+          tags?: string[];
+          community_id?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
+      event_attendees: {
+        Row: {
+          id: string;
+          event_id: string;
+          user_id: string;
+          rsvp_status: 'attending' | 'maybe' | 'not_attending';
+          joined_at: string;
+        };
+        Insert: {
+          id?: string;
+          event_id: string;
+          user_id: string;
+          rsvp_status?: 'attending' | 'maybe' | 'not_attending';
+          joined_at?: string;
+        };
+        Update: {
+          id?: string;
+          event_id?: string;
+          user_id?: string;
+          rsvp_status?: 'attending' | 'maybe' | 'not_attending';
+          joined_at?: string;
+        };
+      };
     };
     Views: {
       [_ in never]: never;
@@ -162,6 +247,8 @@ export type Community = Database['public']['Tables']['communities']['Row'];
 export type Profile = Database['public']['Tables']['profiles']['Row'];
 export type Post = Database['public']['Tables']['posts']['Row'];
 export type CommunityMember = Database['public']['Tables']['community_members']['Row'];
+export type Event = Database['public']['Tables']['events']['Row'];
+export type EventAttendee = Database['public']['Tables']['event_attendees']['Row'];
 
 // Extended types with joined data
 export type PostWithAuthor = Post & {
@@ -175,4 +262,10 @@ export type CommunityWithStats = Community & {
 
 export type ProfileWithInitials = Profile & {
   initials: string;
+};
+
+export type EventWithOrganizer = Event & {
+  organizer: Pick<Profile, 'name' | 'age' | 'role'>;
+  attendee_count: number;
+  user_rsvp_status?: 'attending' | 'maybe' | 'not_attending' | null;
 };

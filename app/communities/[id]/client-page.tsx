@@ -102,6 +102,9 @@ export function CommunityPageContent({ id }: { id: string }) {
               <Link href="/communities" className="text-gray-600 hover:text-yellow-500 transition-colors">
                 Communities
               </Link>
+              <Link href="/map" className="text-gray-600 hover:text-yellow-500 transition-colors">
+                Events
+              </Link>
               <AuthButton />
             </div>
           </div>
@@ -133,6 +136,9 @@ export function CommunityPageContent({ id }: { id: string }) {
               </Link>
               <Link href="/communities" className="text-gray-600 hover:text-yellow-500 transition-colors">
                 Communities
+              </Link>
+              <Link href="/map" className="text-gray-600 hover:text-yellow-500 transition-colors">
+                Events
               </Link>
               <AuthButton />
             </div>
@@ -416,9 +422,9 @@ export function CommunityPageContent({ id }: { id: string }) {
                     </div>
                     <CardTitle className="text-lg leading-tight mb-2 text-gray-900">{post.title}</CardTitle>
                     <div className="flex items-center gap-2 text-sm text-gray-600 mb-3">
-                      <span className="font-medium">{post.profiles?.name || 'Unknown'}</span>
-                      <span>•</span>
-                      <span>Age {post.profiles?.age || 'N/A'}</span>
+                      <span className="font-medium text-gray-900">{post.profiles?.name || 'Unknown'}</span>
+                      <span className="text-gray-600">•</span>
+                      <span className="text-gray-600">Age {post.profiles?.age || 'N/A'}</span>
                     </div>
                     <p className="text-sm text-gray-600 leading-relaxed line-clamp-3">{post.content}</p>
                   </CardHeader>

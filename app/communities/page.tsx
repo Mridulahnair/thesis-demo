@@ -170,6 +170,9 @@ export default function Communities() {
             <Link href="/communities" className="text-gray-600 hover:text-yellow-500 transition-colors">
               Communities
             </Link>
+            <Link href="/map" className="text-gray-600 hover:text-yellow-500 transition-colors">
+              Events
+            </Link>
             <AuthButton />
           </div>
         </div>
@@ -201,8 +204,8 @@ export default function Communities() {
                 </CardHeader>
                 <CardContent className="mt-auto">
                   <div className="flex justify-between text-sm text-gray-500 mb-4">
-                    <span className="font-medium">{community.member_count} members</span>
-                    <span className="font-medium">{community.post_count} posts</span>
+                    <span className="font-medium text-gray-500">{community.member_count} members</span>
+                    <span className="font-medium text-gray-500">{community.post_count} posts</span>
                   </div>
                   
                   <div className="flex flex-wrap gap-2 mb-6">
@@ -251,8 +254,8 @@ export default function Communities() {
                 </CardHeader>
                 <CardContent>
                   <div className="flex justify-between text-sm text-gray-500 mb-4">
-                    <span>{community.member_count} members</span>
-                    <span>{community.post_count} posts</span>
+                    <span className="text-gray-500">{community.member_count} members</span>
+                    <span className="text-gray-500">{community.post_count} posts</span>
                   </div>
                   
                   <div className="flex flex-wrap gap-1 mb-4">

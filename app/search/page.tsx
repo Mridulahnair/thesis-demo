@@ -210,11 +210,14 @@ export default function SearchPage() {
             Knit
           </Link>
           <div className="flex items-center gap-4">
-            <Link href="/search" className="text-gray-600 hover:text-yellow-500 transition-colors">
+            <Link href="/search" className="text-yellow-600 font-semibold">
               Search
             </Link>
             <Link href="/communities" className="text-gray-600 hover:text-yellow-500 transition-colors">
               Communities
+            </Link>
+            <Link href="/map" className="text-gray-600 hover:text-yellow-500 transition-colors">
+              Events
             </Link>
             <AuthButton />
           </div>
@@ -348,15 +351,12 @@ export default function SearchPage() {
                       <CardContent className="p-6 flex flex-col h-full">
                         <div className="flex items-start justify-between mb-3">
                           <Badge className="bg-blue-100 text-blue-800 text-xs">Community</Badge>
-                          <div className="w-10 h-10 bg-yellow-500 rounded-lg flex items-center justify-center">
-                            <span className="text-black font-bold text-sm">🏘️</span>
-                          </div>
                         </div>
                         <h3 className="text-lg font-semibold text-gray-900 mb-2">{result.name}</h3>
                         <p className="text-gray-600 text-sm mb-4 line-clamp-3 flex-grow">{result.description}</p>
                         <div className="flex justify-between text-sm text-gray-500 mb-4">
-                          <span>{result.member_count} members</span>
-                          <span>{result.post_count} posts</span>
+                          <span className="text-gray-500">{result.member_count} members</span>
+                          <span className="text-gray-500">{result.post_count} posts</span>
                         </div>
                         <div className="flex flex-wrap gap-1 mb-4">
                           {result.categories.slice(0, 2).map(category => (

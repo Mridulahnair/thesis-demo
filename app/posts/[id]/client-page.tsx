@@ -141,6 +141,9 @@ export function PostDetailContent({ id }: { id: string }) {
               <Link href="/communities" className="text-gray-600 hover:text-yellow-500 transition-colors">
                 Communities
               </Link>
+              <Link href="/map" className="text-gray-600 hover:text-yellow-500 transition-colors">
+                Events
+              </Link>
               <AuthButton />
             </div>
           </div>
@@ -172,6 +175,9 @@ export function PostDetailContent({ id }: { id: string }) {
               </Link>
               <Link href="/communities" className="text-gray-600 hover:text-yellow-500 transition-colors">
                 Communities
+              </Link>
+              <Link href="/map" className="text-gray-600 hover:text-yellow-500 transition-colors">
+                Events
               </Link>
               <AuthButton />
             </div>
