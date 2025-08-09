@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,144 +8,18 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AuthButton } from "@/components/auth-button";
+import { db } from "@/lib/supabase/queries";
+import type { CommunityWithStats, ProfileWithInitials } from "@/lib/types/database";
 
-interface Community {
-  id: string;
-  name: string;
-  description: string;
-  memberCount: number;
-  postCount: number;
-  categories: string[];
+interface CommunitySearchResult extends CommunityWithStats {
   type: "community";
 }
 
-interface Person {
-  id: string;
-  name: string;
-  initials: string;
-  age: number;
-  location: string;
-  bio: string;
-  skills: string[];
-  categories: string[];
-  rating?: number;
-  reviewCount?: number;
-  experience: string;
-  availability: string;
-  role: "mentor" | "mentee" | "both";
+interface PersonSearchResult extends ProfileWithInitials {
   type: "person";
 }
 
-type SearchResult = Community | Person;
-
-const mockCommunities: Community[] = [
-  {
-    id: "tech-digital",
-    name: "Tech & Digital Skills",
-    description: "Bridging the digital divide. Young tech enthusiasts teaching seniors, while learning wisdom about problem-solving and patience.",
-    memberCount: 127,
-    postCount: 45,
-    categories: ["Technology", "Programming", "Digital Literacy"],
-    type: "community"
-  },
-  {
-    id: "creative-arts",
-    name: "Creative Arts & Crafts",
-    description: "Traditional craftsmanship meets modern creativity. Master artisans sharing techniques with emerging artists.",
-    memberCount: 89,
-    postCount: 32,
-    categories: ["Art", "Crafts", "Design", "Photography"],
-    type: "community"
-  },
-  {
-    id: "cooking-culinary",
-    name: "Cooking & Culinary Traditions",
-    description: "Family recipes and cooking techniques passed down through generations, mixed with modern culinary innovation.",
-    memberCount: 156,
-    postCount: 67,
-    categories: ["Cooking", "Baking", "Traditional Recipes"],
-    type: "community"
-  }
-];
-
-const mockPeople: Person[] = [
-  {
-    id: "1",
-    name: "Margaret Chen",
-    initials: "MC",
-    age: 67,
-    location: "San Francisco, CA",
-    bio: "Retired chef with 40 years of experience in traditional Chinese cooking. I love sharing family recipes and techniques passed down through generations.",
-    skills: ["Traditional Cooking", "Chinese Cuisine", "Food Preservation", "Knife Skills"],
-    categories: ["Culinary Arts"],
-    rating: 4.9,
-    reviewCount: 127,
-    experience: "40+ years",
-    availability: "Flexible",
-    role: "mentor",
-    type: "person"
-  },
-  {
-    id: "2",
-    name: "David Rodriguez",
-    initials: "DR", 
-    age: 45,
-    location: "Austin, TX",
-    bio: "Financial advisor helping people plan for retirement and build wealth. Passionate about making financial literacy accessible to everyone.",
-    skills: ["Financial Planning", "Investment Strategy", "Retirement Planning", "Budgeting"],
-    categories: ["Finance"],
-    rating: 4.8,
-    reviewCount: 89,
-    experience: "20+ years",
-    availability: "Weekends",
-    role: "mentor",
-    type: "person"
-  },
-  {
-    id: "3",
-    name: "Sarah Kim",
-    initials: "SK",
-    age: 29,
-    location: "Los Angeles, CA", 
-    bio: "UX designer passionate about creating accessible digital experiences. Love teaching design thinking and modern creative processes.",
-    skills: ["UX Design", "Digital Tools", "Design Thinking", "Prototyping"],
-    categories: ["Digital Skills"],
-    rating: 4.7,
-    reviewCount: 156,
-    experience: "8+ years",
-    availability: "Evenings",
-    role: "both",
-    type: "person"
-  },
-  {
-    id: "4",
-    name: "Emily Johnson",
-    initials: "EJ",
-    age: 22,
-    location: "Boston, MA",
-    bio: "College student studying computer science. Eager to learn from experienced developers and share my knowledge of modern frameworks.",
-    skills: ["React", "JavaScript", "Python", "Git"],
-    categories: ["Technology"],
-    experience: "2+ years",
-    availability: "Evenings",
-    role: "mentee",
-    type: "person"
-  },
-  {
-    id: "5",
-    name: "James Wilson",
-    initials: "JW",
-    age: 19,
-    location: "Seattle, WA",
-    bio: "Art student looking to learn traditional painting techniques from experienced artists while sharing digital art skills.",
-    skills: ["Digital Art", "Photoshop", "Social Media"],
-    categories: ["Arts & Crafts"],
-    experience: "3+ years",
-    availability: "Weekends",
-    role: "mentee",
-    type: "person"
-  }
-];
+type SearchResult = CommunitySearchResult | PersonSearchResult;
 
 const categories = [
   "Culinary Arts",
@@ -163,25 +37,70 @@ export default function SearchPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<"all" | "communities" | "mentors" | "mentees">("all");
+  const [allResults, setAllResults] = useState<SearchResult[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const allResults: SearchResult[] = [...mockCommunities, ...mockPeople];
+  // Fetch initial data on component mount
+  useEffect(() => {
+    async function fetchInitialData() {
+      setLoading(true);
+      try {
+        const { communities, people } = await db.search("");
+        const results: SearchResult[] = [
+          ...communities.map(c => ({ ...c, type: "community" as const })),
+          ...people.map(p => ({ ...p, type: "person" as const }))
+        ];
+        setAllResults(results);
+      } catch (err) {
+        console.error('Error fetching initial data:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
 
-  const filteredResults = allResults.filter(result => {
-    const matchesSearch = searchTerm === "" || 
-      result.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (result.type === "community" && result.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (result.type === "person" && result.bio.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (result.type === "person" && result.skills?.some(skill => skill.toLowerCase().includes(searchTerm.toLowerCase())));
-    
+    fetchInitialData();
+  }, []);
+
+  // Perform search when search term changes
+  useEffect(() => {
+    if (searchTerm === "") {
+      // If search is empty, load all data
+      return;
+    }
+
+    async function performSearch() {
+      setLoading(true);
+      try {
+        const { communities, people } = await db.search(searchTerm);
+        const results: SearchResult[] = [
+          ...communities.map(c => ({ ...c, type: "community" as const })),
+          ...people.map(p => ({ ...p, type: "person" as const }))
+        ];
+        setAllResults(results);
+      } catch (err) {
+        console.error('Error performing search:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    const timeoutId = setTimeout(performSearch, 500); // Debounce search
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm]);
+
+  const filteredResults = allResults.filter(result => {    
     const matchesCategory = selectedCategories.length === 0 ||
-      selectedCategories.some(cat => result.categories.includes(cat));
+      (result.type === "community" 
+        ? selectedCategories.some(cat => result.categories.includes(cat))
+        : selectedCategories.some(cat => result.interests?.includes(cat) || result.skills?.includes(cat))
+      );
 
     const matchesTab = activeTab === "all" || 
       (activeTab === "communities" && result.type === "community") ||
       (activeTab === "mentors" && result.type === "person" && (result.role === "mentor" || result.role === "both")) ||
       (activeTab === "mentees" && result.type === "person" && (result.role === "mentee" || result.role === "both"));
     
-    return matchesSearch && matchesCategory && matchesTab;
+    return matchesCategory && matchesTab;
   });
 
   const communitiesCount = filteredResults.filter(r => r.type === "community").length;
@@ -231,13 +150,18 @@ export default function SearchPage() {
           
           {/* Search Bar */}
           <div className="flex gap-4 mb-6">
-            <div className="flex-1">
+            <div className="flex-1 relative">
               <Input
                 placeholder="Search communities, people, or skills..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="h-12 text-base border-gray-300 bg-white"
+                className="h-12 text-base border-gray-300 bg-white pr-12"
               />
+              {loading && (
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-yellow-500"></div>
+                </div>
+              )}
             </div>
             <Button className="h-12 px-8 bg-yellow-500 hover:bg-yellow-600 text-black font-semibold">
               Search
@@ -331,7 +255,12 @@ export default function SearchPage() {
 
           {/* Results */}
           <div className="lg:col-span-3">
-            {filteredResults.length > 0 ? (
+            {loading ? (
+              <div className="flex flex-col items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500 mb-4"></div>
+                <p className="text-gray-500 text-lg">Searching...</p>
+              </div>
+            ) : filteredResults.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                 {filteredResults.map(result => (
                   <Card key={`${result.type}-${result.id}`} className="bg-white border border-gray-200 hover:shadow-lg transition-all duration-300">
@@ -347,8 +276,8 @@ export default function SearchPage() {
                         <h3 className="text-lg font-semibold text-gray-900 mb-2">{result.name}</h3>
                         <p className="text-gray-600 text-sm mb-4 line-clamp-3">{result.description}</p>
                         <div className="flex justify-between text-sm text-gray-500 mb-4">
-                          <span>{result.memberCount} members</span>
-                          <span>{result.postCount} posts</span>
+                          <span>{result.member_count} members</span>
+                          <span>{result.post_count} posts</span>
                         </div>
                         <div className="flex flex-wrap gap-1 mb-4">
                           {result.categories.slice(0, 2).map(category => (
@@ -383,7 +312,7 @@ export default function SearchPage() {
                           >
                             {result.role === "mentor" ? "Mentor" : result.role === "mentee" ? "Mentee" : "Both"}
                           </Badge>
-                          <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center text-gray-600 font-semibold text-sm">
+                          <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center text-gray-800 font-semibold text-sm">
                             {result.initials}
                           </div>
                         </div>
@@ -395,7 +324,7 @@ export default function SearchPage() {
                           <div className="flex items-center gap-1 mb-3">
                             <span className="text-yellow-500">⭐</span>
                             <span className="text-sm font-medium">{result.rating}</span>
-                            <span className="text-sm text-gray-500">({result.reviewCount})</span>
+                            <span className="text-sm text-gray-500">({result.review_count})</span>
                           </div>
                         )}
                         

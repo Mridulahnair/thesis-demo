@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,141 +8,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { AuthButton } from "@/components/auth-button";
+import { db } from "@/lib/supabase/queries";
+import type { CommunityWithStats, PostWithAuthor, ProfileWithInitials } from "@/lib/types/database";
 
-interface Post {
-  id: string;
-  title: string;
-  content: string;
-  author: string;
-  authorAge: number;
-  authorRole: "mentor" | "mentee" | "both";
-  timestamp: string;
-  replies: number;
-  likes: number;
-  tags: string[];
-}
 
-interface CommunityMember {
-  id: string;
-  name: string;
-  age: number;
-  role: "mentor" | "mentee" | "both";
-  skills: string[];
-  bio: string;
-  location: string;
-}
-
-interface Community {
-  id: string;
-  name: string;
-  description: string;
-  memberCount: number;
-  categories: string[];
-}
-
-const communities: Record<string, Community> = {
-  "tech-digital": {
-    id: "tech-digital",
-    name: "Tech & Digital Skills",
-    description: "Bridging the digital divide. Young tech enthusiasts teaching seniors, while learning wisdom about problem-solving and patience.",
-    memberCount: 127,
-    categories: ["Technology", "Programming", "Digital Literacy"]
-  },
-  "creative-arts": {
-    id: "creative-arts", 
-    name: "Creative Arts & Crafts",
-    description: "Traditional craftsmanship meets modern creativity. Master artisans sharing techniques with emerging artists.",
-    memberCount: 89,
-    categories: ["Art", "Crafts", "Design", "Photography"]
-  }
-};
-
-const mockPosts: Record<string, Post[]> = {
-  "tech-digital": [
-    {
-      id: "1",
-      title: "Learning Python at 70 - My Journey So Far",
-      content: "I never thought I'd be writing code at my age, but thanks to my mentor Sarah, I've built my first web scraper! It's amazing how patient the younger generation can be.",
-      author: "Robert Wilson",
-      authorAge: 70,
-      authorRole: "mentee",
-      timestamp: "2 hours ago",
-      replies: 12,
-      likes: 34,
-      tags: ["Python", "Learning", "Success Story"]
-    },
-    {
-      id: "2", 
-      title: "Teaching UI Design to Someone Who Lived Through the Dawn of Computing",
-      content: "My mentor George has incredible insights about user experience that I never considered. His perspective from using the first computers gives me a unique view on modern design.",
-      author: "Maya Chen",
-      authorAge: 24,
-      authorRole: "mentee",
-      timestamp: "5 hours ago", 
-      replies: 8,
-      likes: 21,
-      tags: ["UI/UX", "Design", "Perspective"]
-    },
-    {
-      id: "3",
-      title: "Question: Best Resources for Learning Smartphone Photography?",
-      content: "I want to help my mentee improve their phone photography skills, but I realize I need to learn the latest techniques myself. Any recommendations?",
-      author: "Elena Martinez",
-      authorAge: 45,
-      authorRole: "mentor",
-      timestamp: "1 day ago",
-      replies: 15,
-      likes: 18,
-      tags: ["Photography", "Mobile", "Resources"]
-    }
-  ],
-  "creative-arts": [
-    {
-      id: "4",
-      title: "Traditional Pottery Meets Digital Art",
-      content: "Combining 40 years of pottery experience with my mentee's digital art skills to create augmented reality pottery pieces!",
-      author: "James Thompson",
-      authorAge: 65,
-      authorRole: "mentor", 
-      timestamp: "3 hours ago",
-      replies: 7,
-      likes: 28,
-      tags: ["Pottery", "Digital Art", "AR", "Collaboration"]
-    }
-  ]
-};
-
-const mockMembers: Record<string, CommunityMember[]> = {
-  "tech-digital": [
-    {
-      id: "1",
-      name: "Sarah Chen",
-      age: 28,
-      role: "mentor",
-      skills: ["Python", "Web Development", "UI/UX Design", "Mobile Apps"],
-      bio: "Full-stack developer passionate about teaching coding to seniors",
-      location: "San Francisco, CA"
-    },
-    {
-      id: "2", 
-      name: "Robert Wilson",
-      age: 70,
-      role: "mentee",
-      skills: ["Problem Solving", "System Architecture", "Project Management"],
-      bio: "Retired engineer learning modern programming languages",
-      location: "Portland, OR"
-    },
-    {
-      id: "3",
-      name: "Maya Chen", 
-      age: 24,
-      role: "both",
-      skills: ["React", "Node.js", "Database Design", "Leadership"],
-      bio: "Junior developer eager to learn from experienced professionals",
-      location: "Austin, TX"
-    }
-  ]
-};
 
 function CommunityPageContent({ id }: { id: string }) {
   const [activeTab, setActiveTab] = useState<"posts" | "members">("posts");
@@ -152,24 +21,98 @@ function CommunityPageContent({ id }: { id: string }) {
   const [newPostTitle, setNewPostTitle] = useState("");
   const [newPostContent, setNewPostContent] = useState("");
   const [showNewPostForm, setShowNewPostForm] = useState(false);
+  
+  // Supabase data state
+  const [community, setCommunity] = useState<CommunityWithStats | null>(null);
+  const [posts, setPosts] = useState<PostWithAuthor[]>([]);
+  const [members, setMembers] = useState<ProfileWithInitials[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const community = communities[id];
-  const posts = mockPosts[id] || [];
-  const members = mockMembers[id] || [];
+  // Load data on component mount
+  useEffect(() => {
+    async function loadCommunityData() {
+      try {
+        setLoading(true);
+        const [communityData, postsData, membersData] = await Promise.all([
+          db.getCommunity(id),
+          db.getPostsForCommunity(id),
+          db.getCommunityMembers(id)
+        ]);
+        
+        setCommunity(communityData);
+        setPosts(postsData);
+        setMembers(membersData);
+      } catch (err) {
+        console.error('Error loading community data:', err);
+        setError('Failed to load community data');
+      } finally {
+        setLoading(false);
+      }
+    }
 
-  if (!community) {
+    loadCommunityData();
+  }, [id]);
+
+  if (loading) {
     return (
-      <main className="min-h-screen bg-background">
+      <main className="min-h-screen bg-white">
         <nav className="w-full bg-white border-b border-gray-200 px-6 py-4">
           <div className="max-w-6xl mx-auto flex justify-between items-center">
-            <Link href="/" className="text-xl font-bold text-gray-900">Knit</Link>
-            <AuthButton />
+            <Link href="/" className="flex items-center gap-2 text-xl font-bold text-gray-900">
+              <div className="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center">
+                <span className="text-black font-bold text-sm">K</span>
+              </div>
+              Knit
+            </Link>
+            <div className="flex items-center gap-4">
+              <Link href="/search" className="text-gray-600 hover:text-yellow-500 transition-colors">
+                Search
+              </Link>
+              <Link href="/communities" className="text-gray-600 hover:text-yellow-500 transition-colors">
+                Communities
+              </Link>
+              <AuthButton />
+            </div>
+          </div>
+        </nav>
+        <div className="max-w-6xl mx-auto px-6 py-8">
+          <div className="flex flex-col items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500 mb-4"></div>
+            <p className="text-gray-500 text-lg">Loading community...</p>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  if (error || !community) {
+    return (
+      <main className="min-h-screen bg-white">
+        <nav className="w-full bg-white border-b border-gray-200 px-6 py-4">
+          <div className="max-w-6xl mx-auto flex justify-between items-center">
+            <Link href="/" className="flex items-center gap-2 text-xl font-bold text-gray-900">
+              <div className="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center">
+                <span className="text-black font-bold text-sm">K</span>
+              </div>
+              Knit
+            </Link>
+            <div className="flex items-center gap-4">
+              <Link href="/search" className="text-gray-600 hover:text-yellow-500 transition-colors">
+                Search
+              </Link>
+              <Link href="/communities" className="text-gray-600 hover:text-yellow-500 transition-colors">
+                Communities
+              </Link>
+              <AuthButton />
+            </div>
           </div>
         </nav>
         <div className="max-w-4xl mx-auto px-6 py-16 text-center">
-          <h1 className="text-2xl font-bold mb-4">Community Not Found</h1>
+          <h1 className="text-2xl font-bold mb-4 text-gray-900">Community Not Found</h1>
+          <p className="text-gray-600 mb-6">{error || 'The community you are looking for does not exist.'}</p>
           <Link href="/communities">
-            <Button>Back to Communities</Button>
+            <Button className="bg-yellow-500 hover:bg-yellow-600 text-black font-semibold">Back to Communities</Button>
           </Link>
         </div>
       </main>
@@ -177,14 +120,14 @@ function CommunityPageContent({ id }: { id: string }) {
   }
 
   const filteredMembers = members.filter(member => {
-    const matchesSearch = member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         member.bio.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         member.skills.some(skill => 
+    const matchesSearch = (member.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+                         (member.bio?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+                         member.skills?.some(skill => 
                            skill.toLowerCase().includes(searchTerm.toLowerCase())
                          );
     
     const matchesSkill = !skillFilter || 
-                        member.skills.some(skill => 
+                        member.skills?.some(skill => 
                           skill.toLowerCase().includes(skillFilter.toLowerCase())
                         );
     
@@ -194,11 +137,43 @@ function CommunityPageContent({ id }: { id: string }) {
   });
 
 
-  const handleCreatePost = () => {
-    setShowNewPostForm(false);
-    setNewPostTitle("");
-    setNewPostContent("");
-    // In a real app, this would submit to the backend
+  const handleCreatePost = async () => {
+    if (!newPostTitle.trim() || !newPostContent.trim()) {
+      alert('Please fill in both title and content');
+      return;
+    }
+
+    try {
+      // For now, we'll use a placeholder user ID since auth isn't fully implemented
+      // In a real app, this would get the user ID from the auth context
+      const placeholderUserId = '00000000-0000-0000-0000-000000000000';
+      
+      const newPost = await db.createPost({
+        community_id: id,
+        author_id: placeholderUserId,
+        title: newPostTitle,
+        content: newPostContent,
+        tags: [], // Could extract tags from content or add tag input
+      });
+
+      // Add the new post to the local state (with mock author data for display)
+      const postWithAuthor: PostWithAuthor = {
+        ...newPost,
+        profiles: {
+          name: 'You',
+          age: null,
+          role: 'both' as const,
+        }
+      };
+
+      setPosts([postWithAuthor, ...posts]);
+      setShowNewPostForm(false);
+      setNewPostTitle("");
+      setNewPostContent("");
+    } catch (error) {
+      console.error('Error creating post:', error);
+      alert('Failed to create post. Please try again.');
+    }
   };
 
   return (
@@ -228,15 +203,15 @@ function CommunityPageContent({ id }: { id: string }) {
         <div className="mb-8">
           <div className="flex items-start justify-between mb-4">
             <div>
-              <h1 className="text-3xl font-bold mb-2">{community.name}</h1>
-              <p className="text-muted-foreground mb-4">{community.description}</p>
-              <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                <span>{community.memberCount} members</span>
+              <h1 className="text-3xl font-bold mb-2 text-gray-900">{community.name}</h1>
+              <p className="text-gray-600 mb-4">{community.description}</p>
+              <div className="flex items-center gap-4 text-sm text-gray-500">
+                <span>{community.member_count} members</span>
                 <span>•</span>
                 <span>{posts.length} posts</span>
               </div>
             </div>
-            <Button>Join Community</Button>
+            <Button className="bg-yellow-500 hover:bg-yellow-600 text-black font-semibold">Join Community</Button>
           </div>
           
           <div className="flex flex-wrap gap-2">
@@ -249,13 +224,13 @@ function CommunityPageContent({ id }: { id: string }) {
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex gap-4 mb-6 border-b border-border/20">
+        <div className="flex gap-4 mb-6 border-b border-gray-200">
           <button
             onClick={() => setActiveTab("posts")}
             className={`pb-2 px-1 border-b-2 transition-colors ${
               activeTab === "posts" 
-                ? "border-primary text-primary font-semibold" 
-                : "border-transparent text-muted-foreground hover:text-foreground"
+                ? "border-yellow-500 text-yellow-600 font-semibold" 
+                : "border-transparent text-gray-500 hover:text-gray-900"
             }`}
           >
             Community Board
@@ -264,8 +239,8 @@ function CommunityPageContent({ id }: { id: string }) {
             onClick={() => setActiveTab("members")}
             className={`pb-2 px-1 border-b-2 transition-colors ${
               activeTab === "members" 
-                ? "border-primary text-primary font-semibold" 
-                : "border-transparent text-muted-foreground hover:text-foreground"
+                ? "border-yellow-500 text-yellow-600 font-semibold" 
+                : "border-transparent text-gray-500 hover:text-gray-900"
             }`}
           >
             Find Mentors & Mentees
@@ -317,39 +292,41 @@ function CommunityPageContent({ id }: { id: string }) {
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
                         <CardTitle className="text-lg mb-2">{post.title}</CardTitle>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
-                          <span>{post.author}</span>
+                        <div className="flex items-center gap-2 text-sm text-gray-500 mb-3">
+                          <span>{post.profiles?.name || 'Unknown'}</span>
                           <span>•</span>
-                          <span>Age {post.authorAge}</span>
+                          <span>Age {post.profiles?.age || 'N/A'}</span>
                           <Badge 
-                            variant={post.authorRole === "mentor" ? "default" : "secondary"}
-                            className="text-xs"
+                            variant={post.profiles?.role === "mentor" ? "default" : "secondary"}
+                            className={`text-xs ${post.profiles?.role === "mentor" ? "bg-green-100 text-green-800" : 
+                                       post.profiles?.role === "mentee" ? "bg-purple-100 text-purple-800" : 
+                                       "bg-gray-100 text-gray-800"}`}
                           >
-                            {post.authorRole}
+                            {post.profiles?.role || 'member'}
                           </Badge>
                           <span>•</span>
-                          <span>{post.timestamp}</span>
+                          <span>{new Date(post.created_at).toLocaleDateString()}</span>
                         </div>
                       </div>
                     </div>
-                    <p className="text-muted-foreground">{post.content}</p>
+                    <p className="text-gray-500">{post.content}</p>
                   </CardHeader>
                   <CardContent>
                     <div className="flex flex-wrap gap-1 mb-4">
-                      {post.tags.map(tag => (
+                      {post.tags?.map(tag => (
                         <Badge key={tag} variant="outline" className="text-xs">
                           {tag}
                         </Badge>
                       ))}
                     </div>
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      <button className="hover:text-primary transition-colors">
+                    <div className="flex items-center gap-4 text-sm text-gray-500">
+                      <button className="hover:text-yellow-600 transition-colors">
                         👍 {post.likes}
                       </button>
-                      <button className="hover:text-primary transition-colors">
+                      <button className="hover:text-yellow-600 transition-colors">
                         💬 {post.replies} replies
                       </button>
-                      <button className="hover:text-primary transition-colors">
+                      <button className="hover:text-yellow-600 transition-colors">
                         Share
                       </button>
                     </div>
@@ -422,18 +399,20 @@ function CommunityPageContent({ id }: { id: string }) {
                     <div className="flex justify-between items-start">
                       <div>
                         <CardTitle className="text-lg">{member.name}</CardTitle>
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-sm text-gray-500">
                           Age {member.age} • {member.location}
                         </p>
                       </div>
                       <Badge variant={member.role === "mentor" ? "default" : 
-                                   member.role === "mentee" ? "secondary" : "outline"}>
+                                   member.role === "mentee" ? "secondary" : "outline"}
+                             className={member.role === "mentor" ? "bg-green-100 text-green-800" : 
+                                       member.role === "mentee" ? "bg-purple-100 text-purple-800" : ""}>
                         {member.role}
                       </Badge>
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-sm text-muted-foreground mb-4">{member.bio}</p>
+                    <p className="text-sm text-gray-500 mb-4">{member.bio}</p>
                     
                     <div className="space-y-2">
                       <p className="text-sm font-medium">Skills:</p>
@@ -458,7 +437,7 @@ function CommunityPageContent({ id }: { id: string }) {
 
             {filteredMembers.length === 0 && (
               <div className="text-center py-12">
-                <p className="text-muted-foreground">
+                <p className="text-gray-500">
                   No members match your current filters.
                 </p>
                 <Button 
