@@ -144,7 +144,7 @@ const mockMembers: Record<string, CommunityMember[]> = {
   ]
 };
 
-export default function CommunityPage({ params }: { params: { id: string } }) {
+function CommunityPageContent({ id }: { id: string }) {
   const [activeTab, setActiveTab] = useState<"posts" | "members">("posts");
   const [searchTerm, setSearchTerm] = useState("");
   const [skillFilter, setSkillFilter] = useState("");
@@ -153,9 +153,9 @@ export default function CommunityPage({ params }: { params: { id: string } }) {
   const [newPostContent, setNewPostContent] = useState("");
   const [showNewPostForm, setShowNewPostForm] = useState(false);
 
-  const community = communities[params.id];
-  const posts = mockPosts[params.id] || [];
-  const members = mockMembers[params.id] || [];
+  const community = communities[id];
+  const posts = mockPosts[id] || [];
+  const members = mockMembers[id] || [];
 
   if (!community) {
     return (
@@ -193,7 +193,6 @@ export default function CommunityPage({ params }: { params: { id: string } }) {
     return matchesSearch && matchesSkill && matchesRole;
   });
 
-  const allSkills = Array.from(new Set(members.flatMap(member => member.skills)));
 
   const handleCreatePost = () => {
     setShowNewPostForm(false);
@@ -480,4 +479,9 @@ export default function CommunityPage({ params }: { params: { id: string } }) {
       </div>
     </main>
   );
+}
+
+export default async function CommunityPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  return <CommunityPageContent id={id} />;
 }

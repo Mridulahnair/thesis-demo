@@ -56,12 +56,12 @@ const mockMembers: Record<string, CommunityMember> = {
   }
 };
 
-export default function Profile({ params }: { params: { id: string } }) {
+function ProfileContent({ id }: { id: string }) {
   const [connectionMessage, setConnectionMessage] = useState("");
   const [showConnectionForm, setShowConnectionForm] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
 
-  const member = mockMembers[params.id];
+  const member = mockMembers[id];
 
   if (!member) {
     return (
@@ -266,4 +266,9 @@ export default function Profile({ params }: { params: { id: string } }) {
       </div>
     </main>
   );
+}
+
+export default async function Profile({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  return <ProfileContent id={id} />;
 }

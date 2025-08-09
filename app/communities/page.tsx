@@ -210,7 +210,7 @@ export default function Communities() {
         <div className="mt-12 text-center">
           <Card className="max-w-2xl mx-auto bg-white border border-gray-200">
             <CardContent className="pt-6">
-              <h3 className="text-lg font-semibold mb-2 text-gray-900">Don't see your interest?</h3>
+              <h3 className="text-lg font-semibold mb-2 text-gray-900">Don&apos;t see your interest?</h3>
               <p className="text-gray-600 mb-4">
                 Suggest a new community and help bring people together around shared passions.
               </p>

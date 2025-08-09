@@ -158,19 +158,6 @@ const categories = [
   "Wellness"
 ];
 
-const ageGroups = [
-  "Under 25",
-  "25-35", 
-  "36-50",
-  "51-65",
-  "Over 65"
-];
-
-const experienceLevels = [
-  "Beginner (1-5 years)",
-  "Intermediate (5-15 years)",
-  "Expert (15+ years)"
-];
 
 export default function SearchPage() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -182,8 +169,8 @@ export default function SearchPage() {
   const filteredResults = allResults.filter(result => {
     const matchesSearch = searchTerm === "" || 
       result.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      result.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      result.bio?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (result.type === "community" && result.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (result.type === "person" && result.bio.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (result.type === "person" && result.skills?.some(skill => skill.toLowerCase().includes(searchTerm.toLowerCase())));
     
     const matchesCategory = selectedCategories.length === 0 ||

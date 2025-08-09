@@ -1,7 +1,6 @@
 import { AuthButton } from "@/components/auth-button";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { hasEnvVars } from "@/lib/utils";
 import Link from "next/link";
 
 export default function Home() {
@@ -95,7 +94,7 @@ export default function Home() {
               </div>
               <h3 className="font-semibold text-lg text-gray-900">Create Profile</h3>
               <p className="text-gray-600 leading-relaxed">
-                Share your story, interests, and what you're looking to learn or teach
+                Share your story, interests, and what you&apos;re looking to learn or teach
               </p>
             </div>
             
