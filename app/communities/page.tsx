@@ -22,7 +22,7 @@ export default function Communities() {
         setCommunities(data);
       } catch (err) {
         console.error('Error fetching communities:', err);
-        setError('Failed to load communities');
+        setError('Failed to load communities. Please check your internet connection and try again.');
       } finally {
         setLoading(false);
       }

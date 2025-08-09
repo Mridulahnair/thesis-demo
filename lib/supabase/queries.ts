@@ -2,11 +2,28 @@ import { createClient } from './client';
 import type { Database, Profile, PostWithAuthor, CommunityWithStats, ProfileWithInitials } from '../types/database';
 
 export class DatabaseService {
-  private supabase = createClient();
+  private supabase: ReturnType<typeof createClient> | null;
+
+  constructor() {
+    try {
+      this.supabase = createClient();
+    } catch (error) {
+      console.warn('Supabase client creation failed:', error);
+      this.supabase = null;
+    }
+  }
+
+  private checkClient() {
+    if (!this.supabase) {
+      throw new Error('Supabase client is not initialized. Please check your environment variables.');
+    }
+    return this.supabase;
+  }
 
   // Communities
   async getCommunities(): Promise<CommunityWithStats[]> {
-    const { data, error } = await this.supabase
+    const supabase = this.checkClient();
+    const { data, error } = await supabase
       .from('communities')
       .select(`
         *,
@@ -29,7 +46,7 @@ export class DatabaseService {
   }
 
   async getCommunity(id: string): Promise<CommunityWithStats | null> {
-    const { data, error } = await this.supabase
+    const { data, error } = await this.checkClient()
       .from('communities')
       .select(`
         *,
@@ -55,7 +72,7 @@ export class DatabaseService {
 
   // Posts
   async getPostsForCommunity(communityId: string): Promise<PostWithAuthor[]> {
-    const { data, error } = await this.supabase
+    const { data, error } = await this.checkClient()
       .from('posts')
       .select(`
         *,
@@ -80,7 +97,7 @@ export class DatabaseService {
   }
 
   async createPost(post: Database['public']['Tables']['posts']['Insert']) {
-    const { data, error } = await this.supabase
+    const { data, error } = await this.checkClient()
       .from('posts')
       .insert(post)
       .select()
@@ -96,7 +113,7 @@ export class DatabaseService {
 
   // Community Members
   async getCommunityMembers(communityId: string): Promise<ProfileWithInitials[]> {
-    const { data, error } = await this.supabase
+    const { data, error } = await this.checkClient()
       .from('community_members')
       .select(`
         profiles (*)
@@ -118,7 +135,7 @@ export class DatabaseService {
   }
 
   async joinCommunity(communityId: string, userId: string) {
-    const { data, error } = await this.supabase
+    const { data, error } = await this.checkClient()
       .from('community_members')
       .insert({ community_id: communityId, user_id: userId })
       .select()
@@ -134,7 +151,7 @@ export class DatabaseService {
 
   // Profiles/People (for search)
   async searchPeople(query: string = '', role?: 'mentor' | 'mentee' | 'both'): Promise<ProfileWithInitials[]> {
-    let queryBuilder = this.supabase
+    let queryBuilder = this.checkClient()
       .from('profiles')
       .select('*');
 
@@ -175,7 +192,7 @@ export class DatabaseService {
   }
 
   async searchCommunities(query: string): Promise<CommunityWithStats[]> {
-    const { data, error } = await this.supabase
+    const { data, error } = await this.checkClient()
       .from('communities')
       .select(`
         *,
@@ -200,7 +217,7 @@ export class DatabaseService {
 
   // Profile management
   async getProfile(userId: string): Promise<Profile | null> {
-    const { data, error } = await this.supabase
+    const { data, error } = await this.checkClient()
       .from('profiles')
       .select('*')
       .eq('id', userId)
@@ -215,7 +232,7 @@ export class DatabaseService {
   }
 
   async updateProfile(userId: string, updates: Database['public']['Tables']['profiles']['Update']) {
-    const { data, error } = await this.supabase
+    const { data, error } = await this.checkClient()
       .from('profiles')
       .update(updates)
       .eq('id', userId)
