@@ -8,7 +8,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AuthButton } from "@/components/auth-button";
+import { Eye } from "lucide-react";
 import { db } from "@/lib/supabase/queries";
+import { useAuth } from "@/hooks/useAuth";
 import type { CommunityWithStats, ProfileWithInitials } from "@/lib/types/database";
 
 interface CommunitySearchResult extends CommunityWithStats {
@@ -34,11 +36,16 @@ const categories = [
 
 
 export default function SearchPage() {
+  const { user, isAuthenticated, redirectToSignIn } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<"all" | "communities" | "mentors" | "mentees">("all");
   const [allResults, setAllResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
+  const [membershipStatus, setMembershipStatus] = useState<Record<string, boolean>>({});
+  const [connectionStatus, setConnectionStatus] = useState<Record<string, boolean>>({});
+  const [joiningCommunity, setJoiningCommunity] = useState<string | null>(null);
+  const [connectingUser, setConnectingUser] = useState<string | null>(null);
 
   // Fetch initial data on component mount
   useEffect(() => {
@@ -51,6 +58,30 @@ export default function SearchPage() {
           ...people.map(p => ({ ...p, type: "person" as const }))
         ];
         setAllResults(results);
+        
+        // Check membership and connection status for authenticated users
+        if (isAuthenticated && user) {
+          // Check community memberships
+          const membershipPromises = communities.map(async (community) => {
+            const isMember = await db.checkCommunityMembership(community.id, user.id);
+            return [community.id, isMember] as const;
+          });
+          
+          // Check existing connections
+          const connectionPromises = people.map(async (person) => {
+            if (person.id === user.id) return [person.id, false] as const; // Don't show connect to self
+            const hasConnection = await db.checkExistingConnection();
+            return [person.id, hasConnection] as const;
+          });
+          
+          const [memberships, connections] = await Promise.all([
+            Promise.all(membershipPromises),
+            Promise.all(connectionPromises)
+          ]);
+          
+          setMembershipStatus(Object.fromEntries(memberships));
+          setConnectionStatus(Object.fromEntries(connections));
+        }
       } catch (err) {
         console.error('Error fetching initial data:', err);
       } finally {
@@ -59,7 +90,7 @@ export default function SearchPage() {
     }
 
     fetchInitialData();
-  }, []);
+  }, [isAuthenticated, user]);
 
   // Perform search when search term changes
   useEffect(() => {
@@ -117,6 +148,54 @@ export default function SearchPage() {
 
   const clearFilters = () => {
     setSelectedCategories([]);
+  };
+
+  const handleJoinCommunity = async (communityId: string) => {
+    if (!isAuthenticated) {
+      redirectToSignIn();
+      return;
+    }
+
+    if (!user) return;
+
+    try {
+      setJoiningCommunity(communityId);
+      
+      if (membershipStatus[communityId]) {
+        await db.leaveCommunity(communityId, user.id);
+        setMembershipStatus(prev => ({ ...prev, [communityId]: false }));
+      } else {
+        await db.joinCommunity(communityId, user.id);
+        setMembershipStatus(prev => ({ ...prev, [communityId]: true }));
+      }
+    } catch (err) {
+      console.error('Error toggling community membership:', err);
+      alert('Failed to update community membership. Please try again.');
+    } finally {
+      setJoiningCommunity(null);
+    }
+  };
+
+  const handleConnect = async (userId: string) => {
+    if (!isAuthenticated) {
+      redirectToSignIn();
+      return;
+    }
+
+    if (!user || user.id === userId) return;
+
+    try {
+      setConnectingUser(userId);
+      const message = "Hi! I'd love to connect and learn from each other.";
+      await db.sendConnectionRequest(user.id, userId, message);
+      setConnectionStatus(prev => ({ ...prev, [userId]: true }));
+      alert('Connection request sent!');
+    } catch (err) {
+      console.error('Error sending connection request:', err);
+      alert('Failed to send connection request. Please try again.');
+    } finally {
+      setConnectingUser(null);
+    }
   };
 
   return (
@@ -266,7 +345,7 @@ export default function SearchPage() {
                   <Card key={`${result.type}-${result.id}`} className="bg-white border border-gray-200 hover:shadow-lg transition-all duration-300">
                     {result.type === "community" ? (
                       // Community Tile
-                      <CardContent className="p-6">
+                      <CardContent className="p-6 flex flex-col h-full">
                         <div className="flex items-start justify-between mb-3">
                           <Badge className="bg-blue-100 text-blue-800 text-xs">Community</Badge>
                           <div className="w-10 h-10 bg-yellow-500 rounded-lg flex items-center justify-center">
@@ -274,7 +353,7 @@ export default function SearchPage() {
                           </div>
                         </div>
                         <h3 className="text-lg font-semibold text-gray-900 mb-2">{result.name}</h3>
-                        <p className="text-gray-600 text-sm mb-4 line-clamp-3">{result.description}</p>
+                        <p className="text-gray-600 text-sm mb-4 line-clamp-3 flex-grow">{result.description}</p>
                         <div className="flex justify-between text-sm text-gray-500 mb-4">
                           <span>{result.member_count} members</span>
                           <span>{result.post_count} posts</span>
@@ -291,15 +370,27 @@ export default function SearchPage() {
                             </Badge>
                           )}
                         </div>
-                        <Link href={`/communities/${result.id}`}>
-                          <Button className="w-full bg-yellow-500 hover:bg-yellow-600 text-black font-semibold" size="sm">
-                            Join Community
-                          </Button>
-                        </Link>
+                        <div className="flex gap-2 mt-auto">
+                          <Link href={`/communities/${result.id}`}>
+                            <div className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 text-center py-2 px-3 rounded-md transition-colors cursor-pointer text-sm font-medium">
+                              <Eye className="w-4 h-4" />
+                            </div>
+                          </Link>
+                          <div 
+                            className="flex-1 bg-yellow-500 hover:bg-yellow-600 text-black font-semibold text-center py-2 px-4 rounded-md transition-colors cursor-pointer text-sm"
+                            onClick={() => handleJoinCommunity(result.id)}
+                          >
+                            {joiningCommunity === result.id 
+                              ? "..." 
+                              : membershipStatus[result.id] 
+                              ? "Leave" 
+                              : "Join"}
+                          </div>
+                        </div>
                       </CardContent>
                     ) : (
                       // Person Tile
-                      <CardContent className="p-6">
+                      <CardContent className="p-6 flex flex-col h-full">
                         <div className="flex items-start justify-between mb-3">
                           <Badge 
                             className={
@@ -318,15 +409,17 @@ export default function SearchPage() {
                         </div>
                         <h3 className="text-lg font-semibold text-gray-900 mb-1">{result.name}</h3>
                         <p className="text-sm text-gray-500 mb-3">Age {result.age} • {result.location}</p>
-                        <p className="text-gray-600 text-sm mb-4 line-clamp-3">{result.bio}</p>
-                        
-                        {result.rating && (
-                          <div className="flex items-center gap-1 mb-3">
-                            <span className="text-yellow-500">⭐</span>
-                            <span className="text-sm font-medium">{result.rating}</span>
-                            <span className="text-sm text-gray-500">({result.review_count})</span>
-                          </div>
-                        )}
+                        <div className="flex-grow">
+                          <p className="text-gray-600 text-sm mb-4 line-clamp-3">{result.bio}</p>
+                          
+                          {result.rating && (
+                            <div className="flex items-center gap-1 mb-3">
+                              <span className="text-yellow-500">⭐</span>
+                              <span className="text-sm font-medium">{result.rating}</span>
+                              <span className="text-sm text-gray-500">({result.review_count})</span>
+                            </div>
+                          )}
+                        </div>
                         
                         <div className="flex flex-wrap gap-1 mb-4">
                           {result.skills?.slice(0, 2).map(skill => (
@@ -341,15 +434,30 @@ export default function SearchPage() {
                           )}
                         </div>
                         
-                        <div className="flex gap-2">
-                          <Link href={`/profile/${result.id}`} className="flex-1">
-                            <Button variant="outline" size="sm" className="w-full border-gray-300 text-gray-700">
-                              View Profile
-                            </Button>
+                        <div className="flex gap-2 mt-auto">
+                          <Link href={`/profile/${result.id}`}>
+                            <div className="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 text-center py-2 px-3 rounded-md transition-colors cursor-pointer text-sm font-medium">
+                              <Eye className="w-4 h-4" />
+                            </div>
                           </Link>
-                          <Button size="sm" className="bg-yellow-500 hover:bg-yellow-600 text-black font-semibold">
-                            Connect
-                          </Button>
+                          <div 
+                            className={`flex-1 text-center py-2 px-4 rounded-md transition-colors cursor-pointer text-sm font-semibold ${
+                              user?.id === result.id 
+                                ? "bg-gray-300 text-gray-500 cursor-not-allowed" 
+                                : connectionStatus[result.id] 
+                                ? "bg-green-500 hover:bg-green-600 text-white" 
+                                : "bg-yellow-500 hover:bg-yellow-600 text-black"
+                            }`}
+                            onClick={() => handleConnect(result.id)}
+                          >
+                            {user?.id === result.id 
+                              ? "You" 
+                              : connectingUser === result.id 
+                              ? "..." 
+                              : connectionStatus[result.id] 
+                              ? "Connected" 
+                              : "Connect"}
+                          </div>
                         </div>
                       </CardContent>
                     )}

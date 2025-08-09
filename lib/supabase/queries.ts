@@ -111,6 +111,33 @@ export class DatabaseService {
     return data;
   }
 
+  async getPost(postId: string): Promise<PostWithAuthor | null> {
+    const { data, error } = await this.checkClient()
+      .from('posts')
+      .select(`
+        *,
+        profiles:author_id (
+          name,
+          age,
+          role
+        )
+      `)
+      .eq('id', postId)
+      .single();
+
+    if (error) {
+      console.error('Error fetching post:', error);
+      return null;
+    }
+
+    if (!data) return null;
+
+    return {
+      ...data,
+      profiles: Array.isArray(data.profiles) ? data.profiles[0] : data.profiles,
+    };
+  }
+
   // Community Members
   async getCommunityMembers(communityId: string): Promise<ProfileWithInitials[]> {
     const { data, error } = await this.checkClient()
@@ -147,6 +174,49 @@ export class DatabaseService {
     }
 
     return data;
+  }
+
+  async checkCommunityMembership(communityId: string, userId: string): Promise<boolean> {
+    const { data, error } = await this.checkClient()
+      .from('community_members')
+      .select('*')
+      .eq('community_id', communityId)
+      .eq('user_id', userId)
+      .single();
+
+    if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+      console.error('Error checking community membership:', error);
+      throw error;
+    }
+
+    return !!data;
+  }
+
+  async leaveCommunity(communityId: string, userId: string) {
+    const { error } = await this.checkClient()
+      .from('community_members')
+      .delete()
+      .eq('community_id', communityId)
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error('Error leaving community:', error);
+      throw error;
+    }
+  }
+
+  // Connection system for mentors/mentees (simplified for demo)
+  async sendConnectionRequest(fromUserId: string, toUserId: string, message: string) {
+    // For demo purposes, we'll just log the connection request
+    // In a real app, you'd have a connections table and messaging system
+    console.log(`Connection request from ${fromUserId} to ${toUserId}: ${message}`);
+    return { success: true };
+  }
+
+  async checkExistingConnection(): Promise<boolean> {
+    // For demo purposes, always return false (no existing connections)
+    // In a real app, you'd check a connections table
+    return false;
   }
 
   // Profiles/People (for search)

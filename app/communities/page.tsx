@@ -8,18 +8,34 @@ import { Badge } from "@/components/ui/badge";
 import { AuthButton } from "@/components/auth-button";
 import { Eye } from "lucide-react";
 import { db } from "@/lib/supabase/queries";
+import { useAuth } from "@/hooks/useAuth";
 import type { CommunityWithStats } from "@/lib/types/database";
 
 export default function Communities() {
+  const { user, isAuthenticated, redirectToSignIn } = useAuth();
   const [communities, setCommunities] = useState<CommunityWithStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [membershipStatus, setMembershipStatus] = useState<Record<string, boolean>>({});
+  const [joiningCommunity, setJoiningCommunity] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchCommunities() {
       try {
         const data = await db.getCommunities();
         setCommunities(data);
+        
+        // Check membership status for authenticated users
+        if (isAuthenticated && user) {
+          const membershipPromises = data.map(async (community) => {
+            const isMember = await db.checkCommunityMembership(community.id, user.id);
+            return [community.id, isMember] as const;
+          });
+          
+          const memberships = await Promise.all(membershipPromises);
+          const membershipMap = Object.fromEntries(memberships);
+          setMembershipStatus(membershipMap);
+        }
       } catch (err) {
         console.error('Error fetching communities:', err);
         setError('Failed to load communities. Please check your internet connection and try again.');
@@ -29,7 +45,7 @@ export default function Communities() {
     }
 
     fetchCommunities();
-  }, []);
+  }, [isAuthenticated, user]);
 
   if (loading) {
     return (
@@ -106,6 +122,34 @@ export default function Communities() {
     );
   }
 
+  const handleJoinCommunity = async (communityId: string) => {
+    if (!isAuthenticated) {
+      redirectToSignIn();
+      return;
+    }
+
+    if (!user) return;
+
+    try {
+      setJoiningCommunity(communityId);
+      
+      if (membershipStatus[communityId]) {
+        // Leave community
+        await db.leaveCommunity(communityId, user.id);
+        setMembershipStatus(prev => ({ ...prev, [communityId]: false }));
+      } else {
+        // Join community
+        await db.joinCommunity(communityId, user.id);
+        setMembershipStatus(prev => ({ ...prev, [communityId]: true }));
+      }
+    } catch (err) {
+      console.error('Error toggling community membership:', err);
+      alert('Failed to update community membership. Please try again.');
+    } finally {
+      setJoiningCommunity(null);
+    }
+  };
+
   const featuredCommunities = communities.filter(c => c.featured);
   const otherCommunities = communities.filter(c => !c.featured);
 
@@ -175,11 +219,18 @@ export default function Communities() {
                         <Eye className="w-4 h-4" />
                       </Button>
                     </Link>
-                    <Link href={`/communities/${community.id}`} className="flex-1">
-                      <Button className="w-full bg-yellow-500 hover:bg-yellow-600 text-black font-semibold" size="sm">
-                        Join
-                      </Button>
-                    </Link>
+                    <Button 
+                      className="flex-1 bg-yellow-500 hover:bg-yellow-600 text-black font-semibold" 
+                      size="sm"
+                      onClick={() => handleJoinCommunity(community.id)}
+                      disabled={joiningCommunity === community.id}
+                    >
+                      {joiningCommunity === community.id 
+                        ? "..." 
+                        : membershipStatus[community.id] 
+                        ? "Leave" 
+                        : "Join"}
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -189,7 +240,7 @@ export default function Communities() {
 
         <section>
           <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">All Communities</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {otherCommunities.map(community => (
               <Card key={community.id} className="bg-white border border-gray-200 hover:shadow-lg transition-shadow">
                 <CardHeader>
@@ -223,11 +274,18 @@ export default function Communities() {
                         <Eye className="w-4 h-4" />
                       </Button>
                     </Link>
-                    <Link href={`/communities/${community.id}`} className="flex-1">
-                      <Button className="w-full bg-yellow-500 hover:bg-yellow-600 text-black font-semibold" size="sm">
-                        Join
-                      </Button>
-                    </Link>
+                    <Button 
+                      className="flex-1 bg-yellow-500 hover:bg-yellow-600 text-black font-semibold" 
+                      size="sm"
+                      onClick={() => handleJoinCommunity(community.id)}
+                      disabled={joiningCommunity === community.id}
+                    >
+                      {joiningCommunity === community.id 
+                        ? "..." 
+                        : membershipStatus[community.id] 
+                        ? "Leave" 
+                        : "Join"}
+                    </Button>
                   </div>
                 </CardContent>
               </Card>

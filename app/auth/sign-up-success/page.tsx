@@ -26,15 +26,15 @@ export default function Page() {
       <div className="flex min-h-[calc(100vh-80px)] w-full items-center justify-center p-6 md:p-10">
         <div className="w-full max-w-md">
           <div className="flex flex-col gap-6">
-            <Card>
+            <Card className="bg-white border border-gray-200">
               <CardHeader className="text-center">
                 <div className="w-16 h-16 bg-yellow-500 rounded-full flex items-center justify-center mx-auto mb-4">
                   <span className="text-black font-bold text-2xl">✓</span>
                 </div>
-                <CardTitle className="text-2xl">
+                <CardTitle className="text-2xl text-gray-900">
                   Welcome to Knit!
                 </CardTitle>
-                <CardDescription>Check your email to confirm your account</CardDescription>
+                <CardDescription className="text-gray-600">Check your email to confirm your account</CardDescription>
               </CardHeader>
               <CardContent className="text-center space-y-4">
                 <p className="text-sm text-gray-600">
